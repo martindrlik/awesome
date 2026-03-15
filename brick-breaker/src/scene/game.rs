@@ -7,14 +7,15 @@ use super::{
     BALL_COLOR, BRICK_COLOR, GameState, PADDLE_COLOR, SCORE_COLOR, TEXT_COLOR, WALL_COLOR,
 };
 
-const PADDLE_SIZE: Vec2 = Vec2::new(120.0, 20.0);
+const PADDLE_SIZE: Vec2 = Vec2::new(120.0, 30.0);
 const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
 const PADDLE_SPEED: f32 = 500.0;
 const PADDLE_PADDING: f32 = 10.0;
+const PADDLE_Y: f32 = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
 
 const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
 const BALL_DIAMETER: f32 = 30.;
-const BALL_SPEED: f32 = 400.0;
+const BALL_SPEED: f32 = 450.0;
 const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
 
 const WALL_THICKNESS: f32 = 10.0;
@@ -23,7 +24,7 @@ const RIGHT_WALL: f32 = 450.;
 const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
 
-const BRICK_SIZE: Vec2 = Vec2::new(100., 30.);
+const BRICK_SIZE: Vec2 = Vec2::new(50., 30.);
 const GAP_BETWEEN_PADDLE_AND_BRICKS: f32 = 270.0;
 const GAP_BETWEEN_BRICKS: f32 = 5.0;
 const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 20.0;
@@ -135,15 +136,16 @@ fn game_setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut score: ResMut<Score>,
     asset_server: Res<AssetServer>,
 ) {
-    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
+    **score = 0;
     commands.spawn((
         DespawnOnExit(GameState::Game),
         (
             Sprite::from_color(PADDLE_COLOR, Vec2::ONE),
             Transform {
-                translation: Vec3::new(0.0, paddle_y, 0.0),
+                translation: Vec3::new(0.0, PADDLE_Y, 0.0),
                 scale: PADDLE_SIZE.extend(1.0),
                 ..default()
             },
@@ -214,7 +216,7 @@ fn game_setup(
     commands.insert_resource(CollisionSound(ball_collision_sound));
 
     let total_width_of_bricks = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_BRICKS_AND_SIDES;
-    let bottom_edge_of_bricks = paddle_y + GAP_BETWEEN_PADDLE_AND_BRICKS;
+    let bottom_edge_of_bricks = PADDLE_Y + GAP_BETWEEN_PADDLE_AND_BRICKS;
     let total_height_of_bricks = TOP_WALL - bottom_edge_of_bricks - GAP_BETWEEN_BRICKS_AND_CEILING;
 
     assert!(total_width_of_bricks > 0.0);
@@ -316,12 +318,10 @@ fn check_for_collisions(
     mut commands: Commands,
     mut score: ResMut<Score>,
     ball_query: Single<(&mut Velocity, &Transform), With<Ball>>,
-    paddle_query: Single<&Transform, With<Paddle>>,
     collider_query: Query<(Entity, &Transform, Option<&Brick>), With<Collider>>,
     mut game_state: ResMut<NextState<GameState>>,
 ) {
     let (mut ball_velocity, ball_transform) = ball_query.into_inner();
-    let paddle_transform = paddle_query.into_inner();
 
     for (collider_entity, collider_transform, maybe_brick) in &collider_query {
         let collider_bounding_box = Aabb2d::new(
@@ -333,12 +333,8 @@ fn check_for_collisions(
             collider_bounding_box,
         );
         if maybe_brick.is_some() {
-            let paddle_collision = ball_collision(
-                BoundingCircle::new(paddle_transform.translation.truncate(), BALL_DIAMETER / 2.),
-                collider_bounding_box,
-            );
-            if let Some(_paddle_collision) = paddle_collision {
-                game_state.set(GameState::Menu);
+            if PADDLE_Y >= collider_bounding_box.min.y {
+                game_state.set(GameState::GameOver);
             }
         }
 

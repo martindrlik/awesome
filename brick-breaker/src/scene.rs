@@ -21,6 +21,7 @@ pub enum GameState {
     Splash,
     Menu,
     Game,
+    GameOver,
 }
 
 #[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
@@ -34,5 +35,6 @@ pub enum DisplayQuality {
 pub struct Volume(u32);
 
 pub mod game;
+pub mod game_over;
 pub mod menu;
 pub mod splash;
